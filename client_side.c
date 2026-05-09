@@ -28,11 +28,16 @@ int main(){
     perror("Socket Connection Oopsies");
   }
   
-  char* buffer = "meow_maww";
-  ssize_t sent = send(socketFD, buffer, strlen(buffer), 0);
-  if (sent == -1){
+  char* msg2_getreq = "GET / HTTP/1.1\r\nHost: www.google.com\r\n\r\n";
+  ssize_t sent2 = send(socketFD, msg2_getreq, strlen(msg2_getreq), 0);
+  if (sent2 == -1){
     perror("Transmission Failed");
   }
+  printf("%zd bytes sent\n", sent2);
+  char buffer2[10000];
+  recv(socketFD, buffer2, 10000, 0);
+  printf("%s\n", buffer2);
+
   close(socketFD);
   return 0;
 }
