@@ -5,13 +5,14 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <stddef.h>
 #include "abstractsocks.h"
 
 int main(){
   int socketFD = createTCPIPv4Socket();
 
-  const char* ip = "142.250.188.46";
-  const int port = 80;
+  const char* ip = "127.0.0.1";
+  const int port = 5868;
 
   struct sockaddr_in address = createIPv4Address(ip, port);
 
@@ -23,18 +24,28 @@ int main(){
     perror("Socket Connection Oopsies");
     exit(1);
   }
-  
-  char* msg_getreq = "GET / HTTP/1.1\r\nHost: google.com\r\nConnection: close\r\n\r\n";
-  ssize_t sent = send(socketFD, msg_getreq, strlen(msg_getreq), 0);
-  if (sent == -1){
-    perror("Transmission Failed");
-    exit(1);
+  char* line = NULL;
+  size_t line_size = 0;
+  printf("Type and share or die, exit to leave:\n");
+  while(true){
+    ssize_t charCount = getline(&line, &line_size, stdin);
+    if (charCount <= -1){
+      perror("Line fetching Oopsies");
+    }
+    if (strcmp(line, "exit\n")==0){
+      printf("Exiting NOW cuz SOMEONE quit!\n");
+      break;
+    }
+    ssize_t sent = send(socketFD, line, charCount,0);
+    if (sent <= -1){
+      perror("Transmission Failed");
+    }
+    printf("%zd bytes sent\n", sent);
   }
-  printf("%zd bytes sent\n", sent);
-  char buffer[10000];
-  recv(socketFD, buffer, 10000, 0);
-  printf("%s\n", buffer);
-
+  // char buffer[10000];
+  // recv(socketFD, buffer, 10000, 0);
+  // printf("%s\n", buffer);
+  
   close(socketFD);
   return 0;
 }
