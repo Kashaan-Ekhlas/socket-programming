@@ -27,7 +27,7 @@ int main(){
   char* line = NULL;
   size_t line_size = 0;
   printf("Type and share or die, exit to leave:\n");
-  while(true){
+  while(1){
     ssize_t charCount = getline(&line, &line_size, stdin);
     if (charCount <= -1){
       perror("Line fetching Oopsies");

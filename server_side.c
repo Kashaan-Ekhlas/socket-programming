@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include "abstractsocks.h"
 #include <stdlib.h>
+#include <unistd.h>
 
 int main(){
   int serverSocketFD = createTCPIPv4Socket();
@@ -29,10 +30,23 @@ int main(){
   if(clientSocketFD < 0){
     perror("Socket Accepting Woopsies");
   }
-
+  
   char buffer[1024];
-  recv(clientSocketFD, buffer, 1024, 0);
-
-  printf("Response was %s\n", buffer);
+  while(1){
+    ssize_t bytesRecieved = recv(clientSocketFD, buffer, 1023, 0);
+    if(bytesRecieved == 0){
+      printf("Okay client said ba baiii\n");
+      break;
+    }
+    if(bytesRecieved <0){
+      perror("Client Connection Woopsies");
+    } 
+    buffer[bytesRecieved]='\0';
+    printf("Response was %s\n", buffer);
+  }
+  
+  close(clientSocketFD);
+  shutdown(serverSocketFD, SHUT_RDWR);
+  close(serverSocketFD);
   return 0;
 }
