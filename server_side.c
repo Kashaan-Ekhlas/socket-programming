@@ -2,6 +2,7 @@
 #include "abstractsocks.h"
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 
 int main(){
   int serverSocketFD = createTCPIPv4Socket();
@@ -41,8 +42,14 @@ int main(){
     if(bytesRecieved <0){
       perror("Client Connection Woopsies");
     } 
-    buffer[bytesRecieved]='\0';
-    printf("Response was %s\n", buffer);
+    if(buffer[bytesRecieved-1]=='\n'){
+      buffer[bytesRecieved]='\0';
+    }
+    else{
+      buffer[bytesRecieved]='\n';
+      buffer[bytesRecieved + 1] = '\0';
+    }
+    printf("Response was %s", buffer);
   }
   
   close(clientSocketFD);
