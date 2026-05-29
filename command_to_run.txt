@@ -1,0 +1,2 @@
+gcc server_side.c -L. -labstractsocks -o server_side
+gcc client_side.c -L. -labstractsocks -o client_side
