@@ -5,20 +5,90 @@
 #include <string.h>
 #include <pthread.h>
 
+#define MAX_CLIENTS 169
+
+int clientFDs[MAX_CLIENTS];
+int clientCount = 0;
+pthread_mutex_t clientListMutex = PTHREAD_MUTEX_INITIALIZER;
+
+int addClient(int clientSocketFD){
+  pthread_mutex_lock(&clientListMutex);
+  if(clientCount == MAX_CLIENTS){
+    pthread_mutex_unlock(&clientListMutex);
+    return 1;
+  }
+  clientFDs[clientCount++] = clientSocketFD;
+  pthread_mutex_unlock(&clientListMutex);
+  return 0;
+}
+
+void removeClient(int clientSocketFD){
+  pthread_mutex_lock(&clientListMutex);
+  for(int i = 0; i < clientCount; i++){
+    if(clientFDs[i] == clientSocketFD){
+      for (int j = i; j < clientCount - 1; j++) {
+        clientFDs[j] = clientFDs[j + 1];
+      }
+      clientCount--;
+      break;
+    }
+  }
+  pthread_mutex_unlock(&clientListMutex);
+  return;
+}
+int broadcastMsg(int senderFD, char buffer[], ssize_t bytesToSend){
+
+  pthread_mutex_lock(&clientListMutex);
+  int clientCountCopy = clientCount;
+  if (clientCountCopy == 0){
+    pthread_mutex_unlock(&clientListMutex);
+    return 0;
+  }
+  int clientFDsCopy[clientCountCopy];
+  for(int i = 0; i < clientCountCopy; i++){
+    clientFDsCopy[i] = clientFDs[i];
+  }
+  pthread_mutex_unlock(&clientListMutex);
+
+  int failed_count = 0;
+  for(int i = 0; i < clientCountCopy; i++){
+    if(clientFDsCopy[i] != senderFD){
+      ssize_t sent = send(clientFDsCopy[i], buffer, bytesToSend, 0);
+      if (sent <= -1){
+        failed_count++;
+      }
+    }
+  }
+  return failed_count;
+}
+
+
 void* client_threadey(void* args){
-  int clientSocketFD = *(int *)args;
+  int clientSocketFD = *(int* )args;
   free (args);
-  char buffer[1024];
+
+  if(addClient(clientSocketFD)){
+    printf("Overflow, cannot add client\n");
+    close(clientSocketFD);
+    return NULL;
+  }
+
+  unsigned char buffer[1024];
   while(1){
-    ssize_t bytesRecieved = recv(clientSocketFD, buffer, 1023, 0);
+    ssize_t bytesRecieved = recv(clientSocketFD, buffer, 1022, 0);
     if(bytesRecieved == 0){
       printf("Okay client said ba baiii\n");
       break;
     }
-    if(bytesRecieved <0){
+    if(bytesRecieved < 0){
       perror("Client Connection Woopsies");
       continue;
     } 
+    for(int i = 0; i < bytesRecieved; i++){
+      if(buffer[i] < 32 && buffer[i]!='\n'){
+        buffer[i] = '?';
+      }
+    }
     if(buffer[bytesRecieved-1]=='\n'){
       buffer[bytesRecieved]='\0';
     }
@@ -26,8 +96,18 @@ void* client_threadey(void* args){
       buffer[bytesRecieved]='\n';
       buffer[bytesRecieved + 1] = '\0';
     }
-    printf("Response was %s", buffer);
+
+    printf("User %d said: %s", clientSocketFD, buffer);
+
+    int failed_count = broadcastMsg(clientSocketFD, buffer, bytesRecieved+1);
+
+    if(failed_count){
+      printf("Transmission Failed for: %d users\n", failed_count);
+    }
   }
+
+  removeClient(clientSocketFD);
+
   close(clientSocketFD);
   return NULL;
 }
