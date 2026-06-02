@@ -12,10 +12,11 @@
 void* recvthreadey(void* args){
   int socketFD = *(int *)args;
   free (args);
-  unsigned char buffer[1024];
+  unsigned char buffer[1025];
 
   while(1){
     ssize_t bytesRecieved = recv(socketFD, buffer, 1024, 0);
+    buffer[bytesRecieved] = '\0';
     if(bytesRecieved == 0){
       printf("Server Closed Connection\n");
       break;
